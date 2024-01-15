@@ -1,6 +1,18 @@
 import styles from "./Table.module.css";
+import records from "../../records.json";
+import { useMemo } from "react";
 
+interface Record {
+  id: string;
+  name: string;
+  date: string;
+  address: string;
+  phone: string;
+}
 export const Table = () => {
+  const finalRecords = useMemo<Record[]>(() => {
+    return records;
+  }, []);
   return (
     <div className={styles.container}>
       <div className={styles.options}>
@@ -37,17 +49,19 @@ export const Table = () => {
           </div>
           <div className={styles.cell}>User Id</div>
         </div>
-        <div className={styles.row}>
-          <div className={styles.cell}>Jane Cooper</div>
-          <div role="date" className={styles.cell}>
-            1402/02/02
+        {records.slice(0, 4).map((item) => (
+          <div className={styles.row}>
+            <div className={styles.cell}>{item.name}</div>
+            <div role="date" className={styles.cell}>
+              {item.date}
+            </div>
+            <div className={styles.cell}>{item.phone}</div>
+            <div role="address" className={styles.cell}>
+              {item.address}
+            </div>
+            <div className={styles.cell}>{item.id}</div>
           </div>
-          <div className={styles.cell}>09123456789</div>
-          <div role="address" className={styles.cell}>
-            Somewhere in the universe
-          </div>
-          <div className={styles.cell}>324982743</div>
-        </div>
+        ))}
       </div>
       <div className={styles.footer}>
         <p>Showing data 1 to 8 of 256K entries</p>

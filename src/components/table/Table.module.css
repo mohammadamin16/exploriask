@@ -109,6 +109,8 @@ select {
 
 .cell {
   display: flex;
+  overflow: hidden;
+  white-space: nowrap;
   flex-direction: row;
   justify-content: space-between;
   align-items: center;
