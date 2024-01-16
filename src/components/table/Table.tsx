@@ -1,6 +1,6 @@
 import styles from "./Table.module.css";
 import records from "../../records.json";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 
 // getNearPages(0, 10) => [0, 1, 2]
 // getNearPages(1, 10) => [0, 1, 2, 3]
@@ -27,12 +27,66 @@ interface Record {
   address: string;
   phone: string;
 }
+enum FilterOption {
+  None = "None",
+  Address = "Address",
+  Date = "Date",
+  Phone = "Phone",
+  Name = "Name",
+}
+enum SortOption {
+  None = "None",
+  Newest = "Newest",
+  Oldest = "Oldest",
+}
+
 const PAGE_SIZE = 10;
 export const Table = () => {
-  const finalRecords = useMemo<Record[]>(() => {
-    return records;
-  }, []);
   const [activePage, setActivePage] = useState(0);
+
+  const [searchQuery, setSearchQuery] = useState("");
+
+  const [filterOption, setFilterOption] = useState<FilterOption>(
+    FilterOption.None
+  );
+  const [sortOption, setSortOption] = useState<SortOption>(SortOption.None);
+  const onQueryChange = useCallback(
+    (e: React.ChangeEvent<HTMLInputElement>) => {
+      setSearchQuery(e.target.value);
+    },
+    []
+  );
+  const finalRecords = useMemo<Record[]>(() => {
+    const filteredRecords = records.filter((record) => {
+      if (searchQuery) {
+        if (filterOption === FilterOption.None) {
+          return true;
+        } else if (filterOption === FilterOption.Address) {
+          return record.address
+            .toLowerCase()
+            .includes(searchQuery.toLowerCase());
+        } else if (filterOption === FilterOption.Date) {
+          return record.date.includes(searchQuery);
+        } else if (filterOption === FilterOption.Phone) {
+          return record.phone.includes(searchQuery);
+        } else if (filterOption === FilterOption.Name) {
+          return record.name.toLowerCase().includes(searchQuery.toLowerCase());
+        }
+      }
+      return true;
+    });
+    const sortedRecords = filteredRecords.sort((a, b) => {
+      if (sortOption === SortOption.None) {
+        return 0;
+      } else if (sortOption === SortOption.Newest) {
+        return new Date(b.date).getTime() - new Date(a.date).getTime();
+      } else if (sortOption === SortOption.Oldest) {
+        return new Date(a.date).getTime() - new Date(b.date).getTime();
+      }
+      return 0;
+    });
+    return sortedRecords;
+  }, [searchQuery, filterOption, sortOption]);
   const pages = useMemo(() => {
     const pages = [];
     for (let i = 0; i < finalRecords.length; i += PAGE_SIZE) {
@@ -43,30 +97,39 @@ export const Table = () => {
   const nearPages = useMemo(() => {
     return getNearPages(activePage, pages.length, 1);
   }, [activePage, pages]);
-  useEffect(() => {
-    console.log("activePage: ", activePage);
-    console.log(getNearPages(activePage, pages.length, 1));
-  }, [activePage, pages]);
+  const onFilterChange = useCallback(
+    (e: React.ChangeEvent<HTMLSelectElement>) => {
+      setFilterOption(e.target.value as FilterOption);
+    },
+    []
+  );
+  const onSortChange = useCallback(
+    (e: React.ChangeEvent<HTMLSelectElement>) => {
+      setSortOption(e.target.value as SortOption);
+    },
+    []
+  );
+
   return (
     <div className={styles.container}>
       <div className={styles.options}>
         <input
           spellCheck={false}
+          onChange={onQueryChange}
           className={styles.search_bar}
           placeholder="query"
         />
         <div className={styles.filters}>
           Filter:{" "}
-          <select>
-            <option>None</option>
-            <option>Filter 1</option>
-            <option>Filter 2</option>
-            <option>Filter 3</option>
+          <select onChange={onFilterChange}>
+            {Object.values(FilterOption).map((option) => (
+              <option key={option}>{option}</option>
+            ))}
           </select>
         </div>
         <div className={styles.filters}>
           Sort By:{" "}
-          <select>
+          <select onChange={onSortChange}>
             <option>None</option>
             <option>Newest</option>
             <option>Oldest</option>
@@ -83,7 +146,7 @@ export const Table = () => {
           </div>
           <div className={styles.cell}>User Id</div>
         </div>
-        {records
+        {finalRecords
           .slice(activePage * PAGE_SIZE, activePage * PAGE_SIZE + PAGE_SIZE)
           .map((item) => (
             <div key={item.id} className={styles.row}>
@@ -105,6 +168,11 @@ export const Table = () => {
           {activePage * PAGE_SIZE + PAGE_SIZE} of {finalRecords.length} entries
         </p>
         <div className={styles.pagination}>
+          {nearPages[0] !== 0 && (
+            <div onClick={() => setActivePage(0)} className={styles.page}>
+              1
+            </div>
+          )}
           {nearPages.map((pageIndex) => (
             <div
               key={pageIndex}
@@ -115,6 +183,14 @@ export const Table = () => {
               {pageIndex + 1}
             </div>
           ))}
+          {nearPages[nearPages.length - 1] !== pages.length - 1 && (
+            <div
+              onClick={() => setActivePage(pages.length - 1)}
+              className={styles.page}
+            >
+              {pages.length}
+            </div>
+          )}
         </div>
       </div>
     </div>
