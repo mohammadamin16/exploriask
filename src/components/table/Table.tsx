@@ -1,92 +1,84 @@
 import styles from "./Table.module.css";
 import records from "../../records.json";
 import { useCallback, useEffect, useMemo, useState } from "react";
-
-// getNearPages(0, 10) => [0, 1, 2]
-// getNearPages(1, 10) => [0, 1, 2, 3]
-// getNearPages(2, 10) => [1, 2, 3, 4]
-// getNearPages(3, 10) => [2, 3, 4, 5]
-function getNearPages(
-  activePage: number,
-  totalPages: number,
-  raduis: number = 1
-) {
-  const pages = [];
-  for (let i = activePage - raduis; i <= activePage + raduis; i++) {
-    if (i >= 0 && i < totalPages) {
-      pages.push(i);
-    }
-  }
-  return pages;
-}
-
-interface Record {
-  id: string;
-  name: string;
-  date: string;
-  address: string;
-  phone: string;
-}
-enum FilterOption {
-  None = "None",
-  Address = "Address",
-  Date = "Date",
-  Phone = "Phone",
-  Name = "Name",
-}
-enum SortOption {
-  None = "None",
-  Newest = "Newest",
-  Oldest = "Oldest",
-}
+import {
+  DateRecord,
+  FilterOption,
+  SortOption,
+  useParams,
+} from "../../useParams";
+import { getNearPages, sortRecords } from "../../utils";
 
 const PAGE_SIZE = 10;
 export const Table = () => {
-  const [activePage, setActivePage] = useState(0);
+  const {
+    getCurrentPage,
+    getFilter,
+    getSearchQuery,
+    getSorting,
+    setCurrentPage,
+    setFilter,
+    setSearchQuery,
+    setSorting,
+  } = useParams();
 
-  const [searchQuery, setSearchQuery] = useState("");
+  const [activePage, setActivePage] = useState(getCurrentPage);
+  const [query, setQuery] = useState(getSearchQuery);
+  const [filterOption, setFilterOption] = useState<FilterOption>(getFilter);
+  const [sortOption, setSortOption] = useState<SortOption>(getSorting);
 
-  const [filterOption, setFilterOption] = useState<FilterOption>(
-    FilterOption.None
-  );
-  const [sortOption, setSortOption] = useState<SortOption>(SortOption.None);
   const onQueryChange = useCallback(
     (e: React.ChangeEvent<HTMLInputElement>) => {
+      setQuery(e.target.value);
       setSearchQuery(e.target.value);
     },
-    []
+    [] // eslint-disable-line react-hooks/exhaustive-deps
   );
-  const finalRecords = useMemo<Record[]>(() => {
+  const handleChangeSorting = useCallback(
+    (e: React.ChangeEvent<HTMLSelectElement>) => {
+      setSortOption(e.target.value as SortOption);
+      setSorting(e.target.value);
+    },
+    [] // eslint-disable-line react-hooks/exhaustive-deps
+  );
+  const handleChangePage = useCallback(
+    (page: number) => {
+      setActivePage(page);
+      setCurrentPage(page);
+    },
+    [] // eslint-disable-line react-hooks/exhaustive-deps
+  );
+
+  const finalRecords = useMemo<DateRecord[]>(() => {
     const filteredRecords = records.filter((record) => {
-      if (searchQuery) {
+      if (query) {
         if (filterOption === FilterOption.None) {
           return true;
         } else if (filterOption === FilterOption.Address) {
-          return record.address
-            .toLowerCase()
-            .includes(searchQuery.toLowerCase());
+          console.log(
+            "record.address",
+            record.address,
+            query.toLowerCase(),
+            record.address.toLowerCase().includes(query.toLowerCase())
+          );
+          return record.address.toLowerCase().includes(query.toLowerCase());
         } else if (filterOption === FilterOption.Date) {
-          return record.date.includes(searchQuery);
+          return record.date.includes(query);
         } else if (filterOption === FilterOption.Phone) {
-          return record.phone.includes(searchQuery);
+          return record.phone.includes(query);
         } else if (filterOption === FilterOption.Name) {
-          return record.name.toLowerCase().includes(searchQuery.toLowerCase());
+          return record.name.toLowerCase().includes(query.toLowerCase());
         }
       }
       return true;
     });
-    const sortedRecords = filteredRecords.sort((a, b) => {
-      if (sortOption === SortOption.None) {
-        return 0;
-      } else if (sortOption === SortOption.Newest) {
-        return new Date(b.date).getTime() - new Date(a.date).getTime();
-      } else if (sortOption === SortOption.Oldest) {
-        return new Date(a.date).getTime() - new Date(b.date).getTime();
-      }
-      return 0;
-    });
+    const sortedRecords = filteredRecords.sort((a, b) =>
+      sortRecords(a.date, b.date, sortOption)
+    );
+    console.log("length", sortedRecords.length);
     return sortedRecords;
-  }, [searchQuery, filterOption, sortOption]);
+  }, [query, filterOption, sortOption]);
+
   const pages = useMemo(() => {
     const pages = [];
     for (let i = 0; i < finalRecords.length; i += PAGE_SIZE) {
@@ -94,22 +86,25 @@ export const Table = () => {
     }
     return pages;
   }, [finalRecords]);
+
   const nearPages = useMemo(() => {
     return getNearPages(activePage, pages.length, 1);
   }, [activePage, pages]);
-  const onFilterChange = useCallback(
+
+  const handleChangeFilter = useCallback(
     (e: React.ChangeEvent<HTMLSelectElement>) => {
       setFilterOption(e.target.value as FilterOption);
+      setFilter(e.target.value);
     },
-    []
-  );
-  const onSortChange = useCallback(
-    (e: React.ChangeEvent<HTMLSelectElement>) => {
-      setSortOption(e.target.value as SortOption);
-    },
-    []
+    [] // eslint-disable-line react-hooks/exhaustive-deps
   );
 
+  useEffect(() => {
+    console.log("filterOption", filterOption);
+  }, [filterOption]);
+  useEffect(() => {
+    console.log("activePage", activePage);
+  }, [activePage]);
   return (
     <div className={styles.container}>
       <div className={styles.options}>
@@ -121,7 +116,7 @@ export const Table = () => {
         />
         <div className={styles.filters}>
           Filter:{" "}
-          <select onChange={onFilterChange}>
+          <select onChange={handleChangeFilter} value={filterOption}>
             {Object.values(FilterOption).map((option) => (
               <option key={option}>{option}</option>
             ))}
@@ -129,10 +124,10 @@ export const Table = () => {
         </div>
         <div className={styles.filters}>
           Sort By:{" "}
-          <select onChange={onSortChange}>
-            <option>None</option>
-            <option>Newest</option>
-            <option>Oldest</option>
+          <select onChange={handleChangeSorting} value={sortOption}>
+            {Object.values(SortOption).map((option) => (
+              <option key={option}>{option}</option>
+            ))}
           </select>
         </div>
       </div>
@@ -169,14 +164,14 @@ export const Table = () => {
         </p>
         <div className={styles.pagination}>
           {nearPages[0] !== 0 && (
-            <div onClick={() => setActivePage(0)} className={styles.page}>
+            <div onClick={() => handleChangePage(0)} className={styles.page}>
               1
             </div>
           )}
           {nearPages.map((pageIndex) => (
             <div
               key={pageIndex}
-              onClick={() => setActivePage(pageIndex)}
+              onClick={() => handleChangePage(pageIndex)}
               data-active={pageIndex === activePage}
               className={styles.page}
             >
@@ -185,7 +180,7 @@ export const Table = () => {
           ))}
           {nearPages[nearPages.length - 1] !== pages.length - 1 && (
             <div
-              onClick={() => setActivePage(pages.length - 1)}
+              onClick={() => handleChangePage(pages.length - 1)}
               className={styles.page}
             >
               {pages.length}
