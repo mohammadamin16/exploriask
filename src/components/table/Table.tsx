@@ -1,6 +1,24 @@
 import styles from "./Table.module.css";
 import records from "../../records.json";
-import { useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
+
+// getNearPages(0, 10) => [0, 1, 2]
+// getNearPages(1, 10) => [0, 1, 2, 3]
+// getNearPages(2, 10) => [1, 2, 3, 4]
+// getNearPages(3, 10) => [2, 3, 4, 5]
+function getNearPages(
+  activePage: number,
+  totalPages: number,
+  raduis: number = 1
+) {
+  const pages = [];
+  for (let i = activePage - raduis; i <= activePage + raduis; i++) {
+    if (i >= 0 && i < totalPages) {
+      pages.push(i);
+    }
+  }
+  return pages;
+}
 
 interface Record {
   id: string;
@@ -9,10 +27,26 @@ interface Record {
   address: string;
   phone: string;
 }
+const PAGE_SIZE = 10;
 export const Table = () => {
   const finalRecords = useMemo<Record[]>(() => {
     return records;
   }, []);
+  const [activePage, setActivePage] = useState(0);
+  const pages = useMemo(() => {
+    const pages = [];
+    for (let i = 0; i < finalRecords.length; i += PAGE_SIZE) {
+      pages.push(finalRecords.slice(i, i + PAGE_SIZE));
+    }
+    return pages;
+  }, [finalRecords]);
+  const nearPages = useMemo(() => {
+    return getNearPages(activePage, pages.length, 1);
+  }, [activePage, pages]);
+  useEffect(() => {
+    console.log("activePage: ", activePage);
+    console.log(getNearPages(activePage, pages.length, 1));
+  }, [activePage, pages]);
   return (
     <div className={styles.container}>
       <div className={styles.options}>
@@ -49,28 +83,38 @@ export const Table = () => {
           </div>
           <div className={styles.cell}>User Id</div>
         </div>
-        {records.slice(0, 4).map((item) => (
-          <div className={styles.row}>
-            <div className={styles.cell}>{item.name}</div>
-            <div role="date" className={styles.cell}>
-              {item.date}
+        {records
+          .slice(activePage * PAGE_SIZE, activePage * PAGE_SIZE + PAGE_SIZE)
+          .map((item) => (
+            <div key={item.id} className={styles.row}>
+              <div className={styles.cell}>{item.name}</div>
+              <div role="date" className={styles.cell}>
+                {item.date}
+              </div>
+              <div className={styles.cell}>{item.phone}</div>
+              <div role="address" className={styles.cell}>
+                {item.address}
+              </div>
+              <div className={styles.cell}>{item.id}</div>
             </div>
-            <div className={styles.cell}>{item.phone}</div>
-            <div role="address" className={styles.cell}>
-              {item.address}
-            </div>
-            <div className={styles.cell}>{item.id}</div>
-          </div>
-        ))}
+          ))}
       </div>
       <div className={styles.footer}>
-        <p>Showing data 1 to 8 of 256K entries</p>
+        <p>
+          Showing data {activePage * PAGE_SIZE + 1} to{" "}
+          {activePage * PAGE_SIZE + PAGE_SIZE} of {finalRecords.length} entries
+        </p>
         <div className={styles.pagination}>
-          <div data-active={true} className={styles.page}>
-            1
-          </div>
-          <div className={styles.page}>2</div>
-          <div className={styles.page}>3</div>
+          {nearPages.map((pageIndex) => (
+            <div
+              key={pageIndex}
+              onClick={() => setActivePage(pageIndex)}
+              data-active={pageIndex === activePage}
+              className={styles.page}
+            >
+              {pageIndex + 1}
+            </div>
+          ))}
         </div>
       </div>
     </div>
