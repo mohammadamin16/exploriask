@@ -1,6 +1,6 @@
 import styles from "./Table.module.css";
 import records from "../../records.json";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   DateRecord,
   FilterOption,
@@ -10,6 +10,7 @@ import {
 import { getNearPages, sortRecords } from "../../utils";
 
 const PAGE_SIZE = 10;
+const SEARCH_DELAY = 300;
 export const Table = () => {
   const {
     getCurrentPage,
@@ -29,8 +30,13 @@ export const Table = () => {
 
   const onQueryChange = useCallback(
     (e: React.ChangeEvent<HTMLInputElement>) => {
-      setQuery(e.target.value);
-      setSearchQuery(e.target.value);
+      if (timerId.current) {
+        clearTimeout(timerId.current);
+      }
+      timerId.current = setTimeout(() => {
+        setQuery(e.target.value);
+        setSearchQuery(e.target.value);
+      }, SEARCH_DELAY);
     },
     [] // eslint-disable-line react-hooks/exhaustive-deps
   );
@@ -55,12 +61,6 @@ export const Table = () => {
         if (filterOption === FilterOption.None) {
           return true;
         } else if (filterOption === FilterOption.Address) {
-          console.log(
-            "record.address",
-            record.address,
-            query.toLowerCase(),
-            record.address.toLowerCase().includes(query.toLowerCase())
-          );
           return record.address.toLowerCase().includes(query.toLowerCase());
         } else if (filterOption === FilterOption.Date) {
           return record.date.includes(query);
@@ -75,7 +75,6 @@ export const Table = () => {
     const sortedRecords = filteredRecords.sort((a, b) =>
       sortRecords(a.date, b.date, sortOption)
     );
-    console.log("length", sortedRecords.length);
     return sortedRecords;
   }, [query, filterOption, sortOption]);
 
@@ -91,6 +90,7 @@ export const Table = () => {
     return getNearPages(activePage, pages.length, 1);
   }, [activePage, pages]);
 
+  const timerId = useRef<NodeJS.Timeout>(null);
   const handleChangeFilter = useCallback(
     (e: React.ChangeEvent<HTMLSelectElement>) => {
       setFilterOption(e.target.value as FilterOption);
@@ -100,11 +100,10 @@ export const Table = () => {
   );
 
   useEffect(() => {
-    console.log("filterOption", filterOption);
-  }, [filterOption]);
-  useEffect(() => {
-    console.log("activePage", activePage);
-  }, [activePage]);
+    return () => {
+      if (timerId.current) clearTimeout(timerId.current);
+    };
+  }, []);
   return (
     <div className={styles.container}>
       <div className={styles.options}>
@@ -112,7 +111,7 @@ export const Table = () => {
           spellCheck={false}
           onChange={onQueryChange}
           className={styles.search_bar}
-          placeholder="query"
+          placeholder="filter"
         />
         <div className={styles.filters}>
           Filter:{" "}
